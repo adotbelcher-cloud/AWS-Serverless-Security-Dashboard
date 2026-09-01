@@ -43,6 +43,7 @@ def lambda_handler(event, context):
     # Checks that all required fields are present in the request.
     missing_fields = []
     empty_fields = []
+    invalid_type_fields = []
 
     for field in required_fields:
         if field not in event:
@@ -55,7 +56,17 @@ def lambda_handler(event, context):
         }
 
     for field in required_fields:
-        if event[field] == "":
+        if not isinstance(event[field], str):
+            invalid_type_fields.append(field)
+
+    if invalid_type_fields:
+        return {
+            "statusCode": 400,
+            "body": f"Invalid data types for fields: {', '.join(invalid_type_fields)}",
+        }
+
+    for field in required_fields:
+        if event[field].strip() == "":
             empty_fields.append(field)
 
     if empty_fields:
