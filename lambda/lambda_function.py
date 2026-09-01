@@ -209,6 +209,41 @@ def lambda_handler(event, context):
             "body": response["Attributes"],
         }
 
+    # Deletes an existing resource from DynamoDB based on the provided resource ID.
+    if action == "delete":
+        resource_id = event.get("id")
+
+        if not resource_id:
+            return {
+                "statusCode": 400,
+                "body": "Resource ID is required.",
+            }
+
+        # Confirms the resource exists before attempting to delete it.
+        existing_response = table.get_item(
+            Key={
+                "id": resource_id
+            }
+        )
+
+        if "Item" not in existing_response:
+            return {
+                "statusCode": 404,
+                "body": "Resource not found.",
+            }
+
+        # Deletes the resource from DynamoDB.
+        table.delete_item(
+            Key={
+                "id": resource_id
+            }
+        )
+
+        return {
+            "statusCode": 200,
+            "body": "Resource deleted successfully.",
+        }
+
     # Handles requests that create a new resource.
     if action == "create":
         # Defines the fields that must be provided when creating a resource.
