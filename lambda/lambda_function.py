@@ -42,6 +42,7 @@ def lambda_handler(event, context):
 
     # Checks that all required fields are present in the request.
     missing_fields = []
+    empty_fields = []
 
     for field in required_fields:
         if field not in event:
@@ -51,6 +52,16 @@ def lambda_handler(event, context):
         return {
             "statusCode": 400,
             "body": f"Missing required fields: {', '.join(missing_fields)}",
+        }
+
+    for field in required_fields:
+        if event[field] == "":
+            empty_fields.append(field)
+
+    if empty_fields:
+        return {
+            "statusCode": 400,
+            "body": f"Required fields cannot be empty: {', '.join(empty_fields)}",
         }
 
     if event["environment"] not in allowed_environments:
