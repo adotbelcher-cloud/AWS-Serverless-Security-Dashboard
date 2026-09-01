@@ -21,6 +21,25 @@ def lambda_handler(event, context):
         "securityReview",
     ]
 
+    # Defines the supported values for fields with restricted options.
+    allowed_environments = [
+        "development",
+        "staging",
+        "production",
+    ]
+
+    allowed_statuses = [
+        "active",
+        "inactive",
+        "decommissioned",
+    ]
+
+    allowed_security_reviews = [
+        "pending",
+        "in-progress",
+        "complete",
+    ]
+
     # Checks that all required fields are present in the request.
     missing_fields = []
 
@@ -32,6 +51,24 @@ def lambda_handler(event, context):
         return {
             "statusCode": 400,
             "body": f"Missing required fields: {', '.join(missing_fields)}",
+        }
+
+    if event["environment"] not in allowed_environments:
+        return {
+            "statusCode": 400,
+            "body": "Invalid environment.",
+        }
+
+    if event["status"] not in allowed_statuses:
+        return {
+            "statusCode": 400,
+            "body": "Invalid status.",
+        }
+
+    if event["securityReview"] not in allowed_security_reviews:
+        return {
+            "statusCode": 400,
+            "body": "Invalid security review status.",
         }
 
     # Generates values controlled by the application rather than the client.
