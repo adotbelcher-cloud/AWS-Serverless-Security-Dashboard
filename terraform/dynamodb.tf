@@ -62,11 +62,10 @@ resource "aws_dynamodb_table" "resources" {
   }
 
   # Identifies the resource for organization and infrastructure management.
-  tags = {
-    Name        = "serverless-security-dashboard-resources"
-    Project     = "AWS Serverless Security Dashboard"
-    Environment = "development"
-    ManagedBy   = "Terraform"
-  }
+  tags = merge(local.common_tags,
+    {
+      Name = "serverless-security-dashboard-dynamodb-resources"
+    }
+  )
 }
 
