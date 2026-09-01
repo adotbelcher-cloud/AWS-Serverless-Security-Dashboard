@@ -26,10 +26,11 @@ def lambda_handler(event, context):
     # Returns a specific resource from DynamoDB based on the provided resource ID.
     if action == "get":
         resource_id = event.get("id")
+
         if not resource_id:
             return {
                 "statusCode": 400,
-                "body": "resource ID is required",
+                "body": "Resource ID is required.",
             }
 
         response = table.get_item(
@@ -47,6 +48,165 @@ def lambda_handler(event, context):
         return {
             "statusCode": 200,
             "body": response["Item"],
+        }
+
+    # Updates an existing resource in DynamoDB based on the provided resource ID and updated fields.
+    if action == "update":
+        resource_id = event.get("id")
+
+        if not resource_id:
+            return {
+                "statusCode": 400,
+                "body": "Resource ID is required.",
+            }
+
+        allowed_update_fields = [
+            "name",
+            "type",
+            "environment",
+            "owner",
+            "status",
+            "securityReview",
+            "notes",
+        ]
+
+        # Identifies which allowed fields were included in the update request.
+        updated_fields = []
+
+        for field in allowed_update_fields:
+            if field in event:
+                updated_fields.append(field)
+
+        if not updated_fields:
+            return {
+                "statusCode": 400,
+                "body": "At least one field must be provided for update.",
+            }
+
+        # Checks that updated fields contain string values.
+        invalid_type_fields = []
+
+        for field in updated_fields:
+            if not isinstance(event[field], str):
+                invalid_type_fields.append(field)
+
+        if invalid_type_fields:
+            return {
+                "statusCode": 400,
+                "body": f"Invalid data types for fields: {', '.join(invalid_type_fields)}",
+            }
+
+        # Checks that updated fields are not empty or whitespace-only.
+        # Notes are excluded so an existing note can intentionally be cleared.
+        empty_fields = []
+
+        for field in updated_fields:
+            if field != "notes" and event[field].strip() == "":
+                empty_fields.append(field)
+
+        if empty_fields:
+            return {
+                "statusCode": 400,
+                "body": f"Updated fields cannot be empty: {', '.join(empty_fields)}",
+            }
+
+        # Defines the supported values for fields with restricted options.
+        allowed_environments = [
+            "development",
+            "staging",
+            "production",
+        ]
+
+        allowed_statuses = [
+            "active",
+            "inactive",
+            "decommissioned",
+        ]
+
+        allowed_security_reviews = [
+            "pending",
+            "in-progress",
+            "complete",
+        ]
+
+        # Validates restricted fields only when they are included in the update request.
+        if (
+            "environment" in updated_fields
+            and event["environment"] not in allowed_environments
+        ):
+            return {
+                "statusCode": 400,
+                "body": "Invalid environment.",
+            }
+
+        if (
+            "status" in updated_fields
+            and event["status"] not in allowed_statuses
+        ):
+            return {
+                "statusCode": 400,
+                "body": "Invalid status.",
+            }
+
+        if (
+            "securityReview" in updated_fields
+            and event["securityReview"] not in allowed_security_reviews
+        ):
+            return {
+                "statusCode": 400,
+                "body": "Invalid security review status.",
+            }
+
+        # Confirms the resource exists before attempting to update it.
+        existing_response = table.get_item(
+            Key={
+                "id": resource_id
+            }
+        )
+
+        if "Item" not in existing_response:
+            return {
+                "statusCode": 404,
+                "body": "Resource not found.",
+            }
+
+        # Builds the DynamoDB update expression from the fields included in the request.
+        update_expressions = []
+        expression_attribute_names = {}
+        expression_attribute_values = {}
+
+        for index, field in enumerate(updated_fields):
+            name_placeholder = f"#field{index}"
+            value_placeholder = f":value{index}"
+
+            update_expressions.append(
+                f"{name_placeholder} = {value_placeholder}"
+            )
+
+            expression_attribute_names[name_placeholder] = field
+            expression_attribute_values[value_placeholder] = event[field]
+
+        # Updates the timestamp whenever the resource is modified.
+        timestamp = datetime.now(timezone.utc).isoformat()
+
+        update_expressions.append("#updatedAt = :updatedAt")
+        expression_attribute_names["#updatedAt"] = "updatedAt"
+        expression_attribute_values[":updatedAt"] = timestamp
+
+        # Updates the resource in DynamoDB and returns the modified item.
+        response = table.update_item(
+            Key={
+                "id": resource_id
+            },
+            UpdateExpression="SET " + ", ".join(update_expressions),
+            ExpressionAttributeNames=expression_attribute_names,
+            ExpressionAttributeValues=expression_attribute_values,
+            ReturnValues="ALL_NEW",
+        )
+
+        return {
+            "statusCode": 200,
+            "body": response["Attributes"],
         }
 
     # Handles requests that create a new resource.
