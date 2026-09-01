@@ -23,6 +23,32 @@ def lambda_handler(event, context):
             "body": response["Items"],
         }
 
+    # Returns a specific resource from DynamoDB based on the provided resource ID.
+    if action == "get":
+        resource_id = event.get("id")
+        if not resource_id:
+            return {
+                "statusCode": 400,
+                "body": "resource ID is required",
+            }
+
+        response = table.get_item(
+            Key={
+                "id": resource_id
+            }
+        )
+
+        if "Item" not in response:
+            return {
+                "statusCode": 404,
+                "body": "Resource not found.",
+            }
+
+        return {
+            "statusCode": 200,
+            "body": response["Item"],
+        }
+
     # Handles requests that create a new resource.
     if action == "create":
         # Defines the fields that must be provided when creating a resource.
