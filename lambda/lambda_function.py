@@ -1,6 +1,7 @@
 import os
 import uuid
 from datetime import datetime, timezone
+import json
 
 import boto3
 
@@ -30,21 +31,26 @@ ALLOWED_SECURITY_REVIEWS = [
 
 
 def lambda_handler(event, context):
-    # Determines which operation the Lambda function should perform.
-    action = event.get("action", "create")
+    # Extracts the HTTP method and request path provided by API Gateway.
+    http_method = event["requestContext"]["http"]["method"]
+    path = event.get("rawPath")
 
+    # Parses the JSON request body provided by API Gateway.
+    body = json.loads(event.get("body") or "{}")
+
+    
     # Returns all resources currently stored in DynamoDB.
-    if action == "list":
+    if http_method == "GET" and path == "/resources":
         response = table.scan()
 
         return {
             "statusCode": 200,
-            "body": response["Items"],
+            "body": json.dumps(response["Items"]),
         }
 
     # Returns a specific resource from DynamoDB based on the provided resource ID.
-    if action == "get":
-        resource_id = event.get("id")
+    if http_method == "GET" and path.startswith("/resources/"):
+        resource_id = event.get("pathParameters", {}).get("id")
 
         if not resource_id:
             return {
@@ -66,12 +72,12 @@ def lambda_handler(event, context):
 
         return {
             "statusCode": 200,
-            "body": response["Item"],
+            "body": json.dumps(response["Item"]),
         }
 
     # Updates an existing resource in DynamoDB based on the provided resource ID and updated fields.
-    if action == "update":
-        resource_id = event.get("id")
+    if http_method == "PATCH" and path.startswith("/resources/"):
+        resource_id = event.get("pathParameters", {}).get("id")
 
         if not resource_id:
             return {
@@ -93,7 +99,7 @@ def lambda_handler(event, context):
         updated_fields = []
 
         for field in allowed_update_fields:
-            if field in event:
+            if field in body:
                 updated_fields.append(field)
 
         if not updated_fields:
@@ -106,7 +112,7 @@ def lambda_handler(event, context):
         invalid_type_fields = []
 
         for field in updated_fields:
-            if not isinstance(event[field], str):
+            if not isinstance(body[field], str):
                 invalid_type_fields.append(field)
 
         if invalid_type_fields:
@@ -120,7 +126,7 @@ def lambda_handler(event, context):
         empty_fields = []
 
         for field in updated_fields:
-            if field != "notes" and event[field].strip() == "":
+            if field != "notes" and body[field].strip() == "":
                 empty_fields.append(field)
 
         if empty_fields:
@@ -133,7 +139,7 @@ def lambda_handler(event, context):
         # Validates restricted fields only when they are included in the update request.
         if (
             "environment" in updated_fields
-            and event["environment"] not in ALLOWED_ENVIRONMENTS
+            and body["environment"] not in ALLOWED_ENVIRONMENTS
         ):
             return {
                 "statusCode": 400,
@@ -142,7 +148,7 @@ def lambda_handler(event, context):
 
         if (
             "status" in updated_fields
-            and event["status"] not in ALLOWED_STATUSES
+            and body["status"] not in ALLOWED_STATUSES
         ):
             return {
                 "statusCode": 400,
@@ -151,7 +157,7 @@ def lambda_handler(event, context):
 
         if (
             "securityReview" in updated_fields
-            and event["securityReview"] not in ALLOWED_SECURITY_REVIEWS
+            and body["securityReview"] not in ALLOWED_SECURITY_REVIEWS
         ):
             return {
                 "statusCode": 400,
@@ -185,7 +191,7 @@ def lambda_handler(event, context):
             )
 
             expression_attribute_names[name_placeholder] = field
-            expression_attribute_values[value_placeholder] = event[field]
+            expression_attribute_values[value_placeholder] = body[field]
 
         # Updates the timestamp whenever the resource is modified.
         timestamp = datetime.now(timezone.utc).isoformat()
@@ -207,12 +213,12 @@ def lambda_handler(event, context):
 
         return {
             "statusCode": 200,
-            "body": response["Attributes"],
+            "body": json.dumps(response["Attributes"]),
         }
 
     # Deletes an existing resource from DynamoDB based on the provided resource ID.
-    if action == "delete":
-        resource_id = event.get("id")
+    if http_method == "DELETE" and path.startswith("/resources/"):
+        resource_id = event.get("pathParameters", {}).get("id")
 
         if not resource_id:
             return {
@@ -242,11 +248,11 @@ def lambda_handler(event, context):
 
         return {
             "statusCode": 200,
-            "body": "Resource deleted successfully.",
+            "body": "Resource deleted successfully."
         }
 
     # Handles requests that create a new resource.
-    if action == "create":
+    if http_method == "POST" and path == "/resources":
         # Defines the fields that must be provided when creating a resource.
         required_fields = [
             "name",
@@ -264,7 +270,7 @@ def lambda_handler(event, context):
 
         # Checks that all required fields are present in the request.
         for field in required_fields:
-            if field not in event:
+            if field not in body:
                 missing_fields.append(field)
 
         if missing_fields:
@@ -275,10 +281,10 @@ def lambda_handler(event, context):
 
         # Checks that provided resource fields contain string values.
         for field in required_fields:
-            if not isinstance(event[field], str):
+            if not isinstance(body[field], str):
                 invalid_type_fields.append(field)
 
-        if "notes" in event and not isinstance(event["notes"], str):
+        if "notes" in body and not isinstance(body["notes"], str):
             invalid_type_fields.append("notes")
 
         if invalid_type_fields:
@@ -289,7 +295,7 @@ def lambda_handler(event, context):
 
         # Checks that required string fields are not empty or whitespace-only.
         for field in required_fields:
-            if event[field].strip() == "":
+            if body[field].strip() == "":
                 empty_fields.append(field)
 
         if empty_fields:
@@ -299,19 +305,19 @@ def lambda_handler(event, context):
             }
 
         # Checks fields that only allow specific values.
-        if event["environment"] not in ALLOWED_ENVIRONMENTS:
+        if body["environment"] not in ALLOWED_ENVIRONMENTS:
             return {
                 "statusCode": 400,
                 "body": "Invalid environment.",
             }
 
-        if event["status"] not in ALLOWED_STATUSES:
+        if body["status"] not in ALLOWED_STATUSES:
             return {
                 "statusCode": 400,
                 "body": "Invalid status.",
             }
 
-        if event["securityReview"] not in ALLOWED_SECURITY_REVIEWS:
+        if body["securityReview"] not in ALLOWED_SECURITY_REVIEWS:
             return {
                 "statusCode": 400,
                 "body": "Invalid security review status.",
@@ -324,13 +330,13 @@ def lambda_handler(event, context):
         # Builds the resource using client-provided and application-generated values.
         item = {
             "id": resource_id,
-            "name": event["name"],
-            "type": event["type"],
-            "environment": event["environment"],
-            "owner": event["owner"],
-            "status": event["status"],
-            "securityReview": event["securityReview"],
-            "notes": event.get("notes", ""),
+            "name": body["name"],
+            "type": body["type"],
+            "environment": body["environment"],
+            "owner": body["owner"],
+            "status": body["status"],
+            "securityReview": body["securityReview"],
+            "notes": body.get("notes", ""),
             "createdAt": timestamp,
             "updatedAt": timestamp,
         }
@@ -340,11 +346,11 @@ def lambda_handler(event, context):
 
         return {
             "statusCode": 201,
-            "body": f"Resource created successfully with ID: {resource_id}",
+            "body": f"Resource created successfully with ID: {resource_id}"
         }
 
     # Rejects requests that specify an unsupported action.
     return {
         "statusCode": 400,
-        "body": "Invalid action.",
+        "body": "Invalid action."
     }
