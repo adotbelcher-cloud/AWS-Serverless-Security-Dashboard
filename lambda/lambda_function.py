@@ -9,6 +9,25 @@ import boto3
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(os.environ["DYNAMODB_TABLE_NAME"])
 
+# Defines the supported values used when validating resource data.
+ALLOWED_ENVIRONMENTS = [
+    "development",
+    "staging",
+    "production",
+]
+
+ALLOWED_STATUSES = [
+    "active",
+    "inactive",
+    "decommissioned",
+]
+
+ALLOWED_SECURITY_REVIEWS = [
+    "pending",
+    "in-progress",
+    "complete",
+]
+
 
 def lambda_handler(event, context):
     # Determines which operation the Lambda function should perform.
@@ -110,29 +129,11 @@ def lambda_handler(event, context):
                 "body": f"Updated fields cannot be empty: {', '.join(empty_fields)}",
             }
 
-        # Defines the supported values for fields with restricted options.
-        allowed_environments = [
-            "development",
-            "staging",
-            "production",
-        ]
-
-        allowed_statuses = [
-            "active",
-            "inactive",
-            "decommissioned",
-        ]
-
-        allowed_security_reviews = [
-            "pending",
-            "in-progress",
-            "complete",
-        ]
 
         # Validates restricted fields only when they are included in the update request.
         if (
             "environment" in updated_fields
-            and event["environment"] not in allowed_environments
+            and event["environment"] not in ALLOWED_ENVIRONMENTS
         ):
             return {
                 "statusCode": 400,
@@ -141,7 +142,7 @@ def lambda_handler(event, context):
 
         if (
             "status" in updated_fields
-            and event["status"] not in allowed_statuses
+            and event["status"] not in ALLOWED_STATUSES
         ):
             return {
                 "statusCode": 400,
@@ -150,7 +151,7 @@ def lambda_handler(event, context):
 
         if (
             "securityReview" in updated_fields
-            and event["securityReview"] not in allowed_security_reviews
+            and event["securityReview"] not in ALLOWED_SECURITY_REVIEWS
         ):
             return {
                 "statusCode": 400,
@@ -256,25 +257,6 @@ def lambda_handler(event, context):
             "securityReview",
         ]
 
-        # Defines the supported values for fields with restricted options.
-        allowed_environments = [
-            "development",
-            "staging",
-            "production",
-        ]
-
-        allowed_statuses = [
-            "active",
-            "inactive",
-            "decommissioned",
-        ]
-
-        allowed_security_reviews = [
-            "pending",
-            "in-progress",
-            "complete",
-        ]
-
         # Tracks validation problems found in the request.
         missing_fields = []
         empty_fields = []
@@ -291,10 +273,13 @@ def lambda_handler(event, context):
                 "body": f"Missing required fields: {', '.join(missing_fields)}",
             }
 
-        # Checks that required fields contain string values.
+        # Checks that provided resource fields contain string values.
         for field in required_fields:
             if not isinstance(event[field], str):
                 invalid_type_fields.append(field)
+
+        if "notes" in event and not isinstance(event["notes"], str):
+            invalid_type_fields.append("notes")
 
         if invalid_type_fields:
             return {
@@ -314,19 +299,19 @@ def lambda_handler(event, context):
             }
 
         # Checks fields that only allow specific values.
-        if event["environment"] not in allowed_environments:
+        if event["environment"] not in ALLOWED_ENVIRONMENTS:
             return {
                 "statusCode": 400,
                 "body": "Invalid environment.",
             }
 
-        if event["status"] not in allowed_statuses:
+        if event["status"] not in ALLOWED_STATUSES:
             return {
                 "statusCode": 400,
                 "body": "Invalid status.",
             }
 
-        if event["securityReview"] not in allowed_security_reviews:
+        if event["securityReview"] not in ALLOWED_SECURITY_REVIEWS:
             return {
                 "statusCode": 400,
                 "body": "Invalid security review status.",
