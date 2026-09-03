@@ -29,6 +29,16 @@ ALLOWED_SECURITY_REVIEWS = [
     "complete",
 ]
 
+# Defines a helper function to build a standard HTTP response with JSON content.
+def build_response(status_code, body):
+    return {
+        "statusCode": status_code,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": json.dumps(body)
+    }
+
 
 def lambda_handler(event, context):
     # Extracts the HTTP method and request path provided by API Gateway.
@@ -36,27 +46,34 @@ def lambda_handler(event, context):
     path = event.get("rawPath")
 
     # Parses the JSON request body provided by API Gateway.
-    body = json.loads(event.get("body") or "{}")
-
+    try:
+        body = json.loads(event.get("body", "{}"))
+    except json.JSONDecodeError:
+        return build_response(400, {
+            "message": "Request body must contain valid JSON."
+        })
     
+    # Validates that the request body is a JSON object (dictionary) rather than an array or other data type.
+    if not isinstance(body, dict):
+        return build_response(400, {
+            "message": "Request body must be a JSON object."
+        })
+
+
     # Returns all resources currently stored in DynamoDB.
     if http_method == "GET" and path == "/resources":
         response = table.scan()
 
-        return {
-            "statusCode": 200,
-            "body": json.dumps(response["Items"]),
-        }
+        return build_response(200, response["Items"])
 
     # Returns a specific resource from DynamoDB based on the provided resource ID.
     if http_method == "GET" and path.startswith("/resources/"):
         resource_id = event.get("pathParameters", {}).get("id")
 
         if not resource_id:
-            return {
-                "statusCode": 400,
-                "body": "Resource ID is required.",
-            }
+            return build_response(400, {
+                "message": "Resource ID is required."
+                })
 
         response = table.get_item(
             Key={
@@ -65,25 +82,16 @@ def lambda_handler(event, context):
         )
 
         if "Item" not in response:
-            return {
-                "statusCode": 404,
-                "body": "Resource not found.",
-            }
+            return build_response(404, {"message": "Resource not found."})
 
-        return {
-            "statusCode": 200,
-            "body": json.dumps(response["Item"]),
-        }
+        return build_response(200, response["Item"])
 
     # Updates an existing resource in DynamoDB based on the provided resource ID and updated fields.
     if http_method == "PATCH" and path.startswith("/resources/"):
         resource_id = event.get("pathParameters", {}).get("id")
 
         if not resource_id:
-            return {
-                "statusCode": 400,
-                "body": "Resource ID is required.",
-            }
+            return build_response(400, {"message": "Resource ID is required."})
 
         allowed_update_fields = [
             "name",
@@ -103,10 +111,7 @@ def lambda_handler(event, context):
                 updated_fields.append(field)
 
         if not updated_fields:
-            return {
-                "statusCode": 400,
-                "body": "At least one field must be provided for update.",
-            }
+            return build_response(400, {"message": "At least one field must be provided for update."})
 
         # Checks that updated fields contain string values.
         invalid_type_fields = []
@@ -116,10 +121,9 @@ def lambda_handler(event, context):
                 invalid_type_fields.append(field)
 
         if invalid_type_fields:
-            return {
-                "statusCode": 400,
-                "body": f"Invalid data types for fields: {', '.join(invalid_type_fields)}",
-            }
+            return build_response(400, {
+                "message": f"Invalid data types for fields: {', '.join(invalid_type_fields)}"
+            })
 
         # Checks that updated fields are not empty or whitespace-only.
         # Notes are excluded so an existing note can intentionally be cleared.
@@ -130,10 +134,9 @@ def lambda_handler(event, context):
                 empty_fields.append(field)
 
         if empty_fields:
-            return {
-                "statusCode": 400,
-                "body": f"Updated fields cannot be empty: {', '.join(empty_fields)}",
-            }
+            return build_response(400, {
+                "message": f"Required fields cannot be empty: {', '.join(empty_fields)}"
+                })
 
 
         # Validates restricted fields only when they are included in the update request.
@@ -141,28 +144,25 @@ def lambda_handler(event, context):
             "environment" in updated_fields
             and body["environment"] not in ALLOWED_ENVIRONMENTS
         ):
-            return {
-                "statusCode": 400,
-                "body": "Invalid environment.",
-            }
+            return build_response(400, {
+                "message": "Invalid environment."
+                })
 
         if (
             "status" in updated_fields
             and body["status"] not in ALLOWED_STATUSES
         ):
-            return {
-                "statusCode": 400,
-                "body": "Invalid status.",
-            }
+            return build_response(400, {
+                "message": "Invalid status."
+                })
 
         if (
             "securityReview" in updated_fields
             and body["securityReview"] not in ALLOWED_SECURITY_REVIEWS
         ):
-            return {
-                "statusCode": 400,
-                "body": "Invalid security review status.",
-            }
+            return build_response(400, {
+                "message": "Invalid security review status."
+                })
 
         # Confirms the resource exists before attempting to update it.
         existing_response = table.get_item(
@@ -172,10 +172,7 @@ def lambda_handler(event, context):
         )
 
         if "Item" not in existing_response:
-            return {
-                "statusCode": 404,
-                "body": "Resource not found.",
-            }
+            return build_response(404, {"message": "Resource not found."})
 
         # Builds the DynamoDB update expression from the fields included in the request.
         update_expressions = []
@@ -211,20 +208,16 @@ def lambda_handler(event, context):
             ReturnValues="ALL_NEW",
         )
 
-        return {
-            "statusCode": 200,
-            "body": json.dumps(response["Attributes"]),
-        }
+        return build_response(200, response["Attributes"])
 
     # Deletes an existing resource from DynamoDB based on the provided resource ID.
     if http_method == "DELETE" and path.startswith("/resources/"):
         resource_id = event.get("pathParameters", {}).get("id")
 
         if not resource_id:
-            return {
-                "statusCode": 400,
-                "body": "Resource ID is required.",
-            }
+            return build_response(400, {
+                "message": "Resource ID is required."
+                })
 
         # Confirms the resource exists before attempting to delete it.
         existing_response = table.get_item(
@@ -234,10 +227,9 @@ def lambda_handler(event, context):
         )
 
         if "Item" not in existing_response:
-            return {
-                "statusCode": 404,
-                "body": "Resource not found.",
-            }
+            return build_response(404, {
+                "message": "Resource not found."
+                })
 
         # Deletes the resource from DynamoDB.
         table.delete_item(
@@ -246,10 +238,9 @@ def lambda_handler(event, context):
             }
         )
 
-        return {
-            "statusCode": 200,
-            "body": "Resource deleted successfully."
-        }
+        return build_response(200, {
+            "message": "Resource deleted successfully."
+        })
 
     # Handles requests that create a new resource.
     if http_method == "POST" and path == "/resources":
@@ -274,10 +265,9 @@ def lambda_handler(event, context):
                 missing_fields.append(field)
 
         if missing_fields:
-            return {
-                "statusCode": 400,
-                "body": f"Missing required fields: {', '.join(missing_fields)}",
-            }
+            return build_response(400, {
+                "message": f"Missing required fields: {', '.join(missing_fields)}"
+                })
 
         # Checks that provided resource fields contain string values.
         for field in required_fields:
@@ -288,10 +278,9 @@ def lambda_handler(event, context):
             invalid_type_fields.append("notes")
 
         if invalid_type_fields:
-            return {
-                "statusCode": 400,
-                "body": f"Invalid data types for fields: {', '.join(invalid_type_fields)}",
-            }
+            return build_response(400, {
+                "message": f"Invalid data types for fields: {', '.join(invalid_type_fields)}"
+                })
 
         # Checks that required string fields are not empty or whitespace-only.
         for field in required_fields:
@@ -299,29 +288,26 @@ def lambda_handler(event, context):
                 empty_fields.append(field)
 
         if empty_fields:
-            return {
-                "statusCode": 400,
-                "body": f"Required fields cannot be empty: {', '.join(empty_fields)}",
-            }
+            return build_response(400, {
+                "message": f"Required fields cannot be empty: {', '.join(empty_fields)}"
+                })  
+            
 
         # Checks fields that only allow specific values.
         if body["environment"] not in ALLOWED_ENVIRONMENTS:
-            return {
-                "statusCode": 400,
-                "body": "Invalid environment.",
-            }
+            return build_response(400, {
+                "message": "Invalid environment."
+                })
 
         if body["status"] not in ALLOWED_STATUSES:
-            return {
-                "statusCode": 400,
-                "body": "Invalid status.",
-            }
+            return build_response(400, {
+                "message": "Invalid status."    
+                })  
 
         if body["securityReview"] not in ALLOWED_SECURITY_REVIEWS:
-            return {
-                "statusCode": 400,
-                "body": "Invalid security review status.",
-            }
+            return build_response(400, {
+                "message": "Invalid security review status."
+                })
 
         # Generates values controlled by the application rather than the client.
         resource_id = str(uuid.uuid4())
@@ -344,13 +330,12 @@ def lambda_handler(event, context):
         # Writes the validated resource to DynamoDB.
         table.put_item(Item=item)
 
-        return {
-            "statusCode": 201,
-            "body": f"Resource created successfully with ID: {resource_id}"
-        }
+        return build_response(201, {
+            "message": "Resource created successfully.",
+            "id": resource_id
+        })
 
     # Rejects requests that specify an unsupported action.
-    return {
-        "statusCode": 400,
-        "body": "Invalid action."
-    }
+    return build_response(400, {
+        "message": "Invalid action."
+    })  
