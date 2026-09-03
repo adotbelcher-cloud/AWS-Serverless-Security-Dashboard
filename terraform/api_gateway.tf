@@ -29,31 +29,6 @@ resource "aws_apigatewayv2_route" "routes" {
   target    = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
 }
 
-moved {
-  from = aws_apigatewayv2_route.get_resources_route
-  to   = aws_apigatewayv2_route.routes["GET /resources"]
-}
-
-moved {
-  from = aws_apigatewayv2_route.get_resource_by_id_route
-  to   = aws_apigatewayv2_route.routes["GET /resources/{id}"]
-}
-
-moved {
-  from = aws_apigatewayv2_route.post_resource_route
-  to   = aws_apigatewayv2_route.routes["POST /resources"]
-}
-
-moved {
-  from = aws_apigatewayv2_route.patch_resource_by_id_route
-  to   = aws_apigatewayv2_route.routes["PATCH /resources/{id}"]
-}
-
-moved {
-  from = aws_apigatewayv2_route.delete_resource_by_id_route
-  to   = aws_apigatewayv2_route.routes["DELETE /resources/{id}"]
-}
-
 # Deploys the HTTP API using the default stage.
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.api.id

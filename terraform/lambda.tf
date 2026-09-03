@@ -1,5 +1,4 @@
 # Packages the Lambda source code into a ZIP file for deployment.
-
 data "archive_file" "lambda" {
   type        = "zip"
   source_file = "${path.module}/../lambda/lambda_function.py"
