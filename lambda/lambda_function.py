@@ -2,8 +2,12 @@ import os
 import uuid
 from datetime import datetime, timezone
 import json
-
 import boto3
+import logging
+
+# Creates a logger for application events written to CloudWatch Logs.
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 
 # Connects to the DynamoDB table provided by Terraform through an environment variable.
@@ -44,6 +48,9 @@ def lambda_handler(event, context):
     # Extracts the HTTP method and request path provided by API Gateway.
     http_method = event["requestContext"]["http"]["method"]
     path = event.get("rawPath")
+
+    # Records the incoming HTTP request for troubleshooting and observability.
+    logger.info("Received request: %s %s", http_method, path)
 
     # Parses the JSON request body provided by API Gateway.
     try:
@@ -208,6 +215,8 @@ def lambda_handler(event, context):
             ReturnValues="ALL_NEW",
         )
 
+        # Records the ID of the resource updated by the API.
+        logger.info("resource updated: %s", resource_id)
         return build_response(200, response["Attributes"])
 
     # Deletes an existing resource from DynamoDB based on the provided resource ID.
@@ -238,6 +247,8 @@ def lambda_handler(event, context):
             }
         )
 
+        # Records the ID of the resource deleted by the API.
+        logger.info("resource deleted: %s", resource_id)
         return build_response(200, {
             "message": "Resource deleted successfully."
         })
@@ -329,6 +340,9 @@ def lambda_handler(event, context):
 
         # Writes the validated resource to DynamoDB.
         table.put_item(Item=item)
+
+        # Records the ID of the resource created by the API.
+        logger.info("resource created: %s", resource_id)
 
         return build_response(201, {
             "message": "Resource created successfully.",
