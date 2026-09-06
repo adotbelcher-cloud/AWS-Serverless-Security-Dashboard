@@ -18,3 +18,8 @@ locals {
     "DELETE /resources/{id}",
   ])
 }
+
+locals {
+  # The name of the S3 bucket used to host the frontend of the security dashboard.
+  frontend_bucket_name = "aws-serverless-security-dashboard-frontend"
+}
