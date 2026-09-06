@@ -3,6 +3,12 @@ resource "aws_apigatewayv2_api" "api" {
   name          = "serverless-security-dashboard-api"
   protocol_type = "HTTP"
 
+  cors_configuration {
+    allow_origins = ["http://localhost:8000"]
+    allow_methods = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
+    allow_headers = ["Content-Type"]
+  }
+
   tags = merge(
     local.common_tags,
     {

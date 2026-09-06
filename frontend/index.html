@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AWS Serverless Security Dashboard</title>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <main>
+        <h1>AWS Serverless Security Dashboard</h1>
+
+        <section>
+            <h2>Add Resource</h2>
+
+            <form id="resource-form">
+                <label for="name">Name</label>
+                <input type="text" id="name" required>
+
+                <label for="type">Type</label>
+                <input type="text" id="type" required>
+
+                <label for="environment">Environment</label>
+                <select id="environment" required>
+                    <option value="development">Development</option>
+                    <option value="staging">Staging</option>
+                    <option value="production">Production</option>
+                </select>
+
+                <label for="owner">Owner</label>
+                <input type="text" id="owner" required>
+
+                <label for="status">Status</label>
+                <select id="status" required>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="decommissioned">Decommissioned</option>
+                </select>
+
+                <label for="securityReview">Security Review</label>
+                <select id="securityReview" required>
+                    <option value="pending">Pending</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="complete">Complete</option>
+                </select>
+
+                <label for="notes">Notes</label>
+                <textarea id="notes"></textarea>
+
+                <button type="submit">Add Resource</button>
+            </form>
+        </section>
+
+        <section>
+            <h2>Resources</h2>
+
+            <div id="resource-list">
+                <p>Loading resources...</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
