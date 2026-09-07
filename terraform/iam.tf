@@ -20,7 +20,6 @@ resource "aws_iam_role" "lambda_execution" {
       Name = "serverless-security-dashboard-lambda-execution-role"
     }
   )
-
 }
 
 # Allows the Lambda function to write execution logs to CloudWatch.
@@ -43,11 +42,10 @@ resource "aws_iam_policy" "lambda_dynamodb" {
           "dynamodb:GetItem",
           "dynamodb:UpdateItem",
           "dynamodb:DeleteItem",
-          "dynamodb:Query",
           "dynamodb:Scan"
         ]
         Effect   = "Allow"
-        Resource = [aws_dynamodb_table.resources.arn, "${aws_dynamodb_table.resources.arn}/index/*"]
+        Resource = [aws_dynamodb_table.resources.arn]
       }
     ]
   })

@@ -3,13 +3,13 @@
 
 # S3 Bucket 
 resource "aws_s3_bucket" "frontend_bucket" {
-  bucket = local.frontend_bucket_name
+  bucket        = local.frontend_bucket_name
+  force_destroy = true
 
   tags = merge(local.common_tags, {
     Name = local.frontend_bucket_name
   })
 }
-
 
 # S3 Bucket Public Access Block to restrict public access
 resource "aws_s3_bucket_public_access_block" "frontend_bucket" {
@@ -76,4 +76,19 @@ resource "aws_s3_object" "js" {
   content_type = "application/javascript"
   etag         = filemd5("${path.module}/../frontend/app.js")
 }
-    
+
+# Generates the dashboard deployment configuration from Terraform-managed AWS resources.
+resource "aws_s3_object" "config_js" {
+  bucket       = aws_s3_bucket.frontend_bucket.id
+  key          = "config.js"
+  content_type = "application/javascript"
+
+  content = <<-EOT
+    window.APP_CONFIG = ${jsonencode({
+  apiBaseUrl      = aws_apigatewayv2_api.api.api_endpoint
+  cognitoClientId = aws_cognito_user_pool_client.dashboard.id
+  cognitoDomain   = "${aws_cognito_user_pool_domain.dashboard.domain}.auth.us-east-1.amazoncognito.com"
+  redirectUri     = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+})};
+  EOT
+}

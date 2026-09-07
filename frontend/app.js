@@ -1,8 +1,8 @@
-const API_BASE_URL = "https://7knhe8rpy7.execute-api.us-east-1.amazonaws.com";
+const API_BASE_URL = window.APP_CONFIG.apiBaseUrl;
 
-const COGNITO_CLIENT_ID = "4q6oodsbmutorlecnmfhgu4liv";
-const COGNITO_DOMAIN = "serverless-security-dashboard.auth.us-east-1.amazoncognito.com";
-const REDIRECT_URI = "https://d3j1gi7s7gqnk2.cloudfront.net";
+const COGNITO_CLIENT_ID = window.APP_CONFIG.cognitoClientId;
+const COGNITO_DOMAIN = window.APP_CONFIG.cognitoDomain;
+const REDIRECT_URI = window.APP_CONFIG.redirectUri;
 
 let editingResourceId = null;
 
