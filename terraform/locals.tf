@@ -9,14 +9,30 @@ locals {
 
 # Route keys (method + path) for the security dashboard's HTTP API.
 # Used by aws_apigatewayv2_route.routes in api_gateway.tf to create one route per entry.
+# Defines each API route and whether Cognito authentication is required.
+
 locals {
-  api_routes = toset([
-    "GET /resources",
-    "GET /resources/{id}",
-    "POST /resources",
-    "PATCH /resources/{id}",
-    "DELETE /resources/{id}",
-  ])
+  api_routes = {
+    "GET /resources" = {
+      authorization_type = "NONE"
+    }
+
+    "GET /resources/{id}" = {
+      authorization_type = "NONE"
+    }
+
+    "POST /resources" = {
+      authorization_type = "JWT"
+    }
+
+    "PATCH /resources/{id}" = {
+      authorization_type = "JWT"
+    }
+
+    "DELETE /resources/{id}" = {
+      authorization_type = "JWT"
+    }
+  }
 }
 
 locals {
