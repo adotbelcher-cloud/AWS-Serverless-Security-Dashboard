@@ -624,4 +624,4 @@ These are considered potential production-oriented enhancements rather than requ
 
 **Aaron Belcher**
 
-Cybersecurity professional developing hands-on cloud and infrastructure engineering experience with AWS, Terraform, Infrastructure as Code, automation, and secure cloud architecture.
+Cybersecurity professional developing hands-on cloud and infrastructure engineering experience with AWS, implemented through Terraform.
