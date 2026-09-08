@@ -208,40 +208,73 @@ async function loadResources() {
 
         for (const resource of resources) {
             const resourceElement = document.createElement("div");
+            resourceElement.classList.add("resource-card");
+
+            const header = document.createElement("div");
+            header.classList.add("resource-card-header");
 
             const name = document.createElement("h3");
+            name.classList.add("resource-name");
             name.textContent = resource.name;
 
-            const type = document.createElement("p");
-            type.textContent = `Type: ${resource.type}`;
+            const statusPill = document.createElement("span");
+            statusPill.classList.add("status-pill");
+            statusPill.dataset.status = resource.status;
+            statusPill.textContent = resource.status;
 
-            const environment = document.createElement("p");
-            environment.textContent = `Environment: ${resource.environment}`;
+            header.appendChild(name);
+            header.appendChild(statusPill);
 
-            const owner = document.createElement("p");
-            owner.textContent = `Owner: ${resource.owner}`;
+            const meta = document.createElement("div");
+            meta.classList.add("resource-meta");
 
-            const status = document.createElement("p");
-            status.textContent = `Status: ${resource.status}`;
+            function metaField(labelText, valueText) {
+                const field = document.createElement("div");
+                field.classList.add("meta-field");
 
-            const securityReview = document.createElement("p");
+                const label = document.createElement("span");
+                label.classList.add("meta-label");
+                label.textContent = labelText;
+
+                const value = document.createElement("span");
+                value.classList.add("meta-value");
+                value.textContent = valueText;
+
+                field.appendChild(label);
+                field.appendChild(value);
+
+                return field;
+            }
+
+            const type = metaField("Type", resource.type);
+            const environment = metaField("Environment", resource.environment);
+            const owner = metaField("Owner", resource.owner);
+
+            meta.appendChild(type);
+            meta.appendChild(environment);
+            meta.appendChild(owner);
+
+            const securityReview = document.createElement("div");
+            securityReview.classList.add("review-badge");
+            securityReview.dataset.review = resource.securityReview;
             securityReview.textContent =
-                `Security Review: ${resource.securityReview}`;
+                `Security review: ${resource.securityReview}`;
 
             const notes = document.createElement("p");
+            notes.classList.add("resource-notes");
             notes.textContent =
                 `Notes: ${resource.notes || "None"}`;
 
-            resourceElement.appendChild(name);
-            resourceElement.appendChild(type);
-            resourceElement.appendChild(environment);
-            resourceElement.appendChild(owner);
-            resourceElement.appendChild(status);
+            resourceElement.appendChild(header);
+            resourceElement.appendChild(meta);
             resourceElement.appendChild(securityReview);
             resourceElement.appendChild(notes);
 
             // Only authenticated users receive controls that modify resources.
             if (getAccessToken()) {
+                const actions = document.createElement("div");
+                actions.classList.add("resource-actions");
+
                 const editButton = document.createElement("button");
                 editButton.textContent = "Edit";
                 editButton.classList.add("edit-button");
@@ -277,8 +310,9 @@ async function loadResources() {
                     }
                 });
 
-                resourceElement.appendChild(editButton);
-                resourceElement.appendChild(deleteButton);
+                actions.appendChild(editButton);
+                actions.appendChild(deleteButton);
+                resourceElement.appendChild(actions);
             }
 
             resourceList.appendChild(resourceElement);
