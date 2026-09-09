@@ -62,6 +62,7 @@ resource "aws_cognito_user_pool_client" "dashboard" {
   ]
 }
 
+# Creates a Cognito user pool domain for the serverless security dashboard, allowing users to access the login and signup pages. Configures the domain name and associates it with the user pool.
 resource "aws_cognito_user_pool_domain" "dashboard" {
   domain       = "serverless-security-dashboard"
   user_pool_id = aws_cognito_user_pool.dashboard.id

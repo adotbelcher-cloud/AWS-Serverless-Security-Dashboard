@@ -1,3 +1,4 @@
+# origin access control for the frontend distribution
 resource "aws_cloudfront_origin_access_control" "frontend" {
   name                              = "serverless-security-dashboard-frontend-oac"
   description                       = "Origin Access Control for the serverless security dashboard"
@@ -7,6 +8,7 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
 
 }
 
+# Creates a CloudFront distribution for the frontend S3 bucket.
 resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   comment             = "Serverless Security Dashboard Frontend"
